@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 2.8)
+project(CV)
+find_package(OpenCV REQUIRED)
+set(CMAKE_CXX_FLAGS "-g")
+add_executable(color_balance ColorBalance.cpp)
+target_link_libraries(color_balance ${OpenCV_LIBS})
