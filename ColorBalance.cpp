@@ -45,6 +45,8 @@ void updateImage(int percent, void *untypedData) {
     cv::Vec3f factor((float) data->percentB / 100,
                      (float) data->percentG / 100,
                      (float) data->percentR / 100);
+
+    // Apply the scale factor at each element
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
             cv::Point p(i, j);
@@ -57,7 +59,7 @@ void updateImage(int percent, void *untypedData) {
         cv::pow(modifiedImage, GAMMA_EXPONENT, modifiedImage);
     }
 
-    // Convert back to 8-bit RGB for display.
+    // Convert back to 8-bit BGR for display.
     modifiedImage.convertTo(displayImage, CV_8UC3);
     cv::imshow(WINDOW_NAME, displayImage);
 }
@@ -87,7 +89,7 @@ int main(int argc, char *argv[]) {
     cv::createTrackbar(SLIDER_NAME_B, WINDOW_NAME, &data.percentB, 200,
                        updateImage, &data);
     for (;;) {
-        // Everything happens in updateContrast from here out.
+        // Everything happens in updateImage from here out.
         if (cv::waitKey(0) == 27) {
             break;
         }
