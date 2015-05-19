@@ -7,8 +7,12 @@ OpenCV examples written in C++.
 
 ## Building and running
 
-    # Install dependencies. On Ubuntu, for example:
+    # Install dependencies (on Ubuntu):
     sudo apt-get install cmake libopencv-dev
+
+    # Install dependencies (on OSX):
+    brew tap homebrew/science
+    brew install opencv
 
     # Clone sources
     cd somewhere
