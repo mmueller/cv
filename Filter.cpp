@@ -9,9 +9,12 @@
 // convR: row vector of the separated convolution kernel
 cv::Mat filter(const cv::Mat &image, cv::Vec3i convC, cv::Vec3i convR) {
     cv::Mat grayscale, padded;
-    cv::Mat result = cv::Mat::zeros(image.size(), CV_8U);
+    cv::Mat result = cv::Mat::zeros(image.size(), CV_32F);
+    // Work in grayscale, 32-bit floating point space to avoid loss of precision
     cv::cvtColor(image, grayscale, CV_BGR2GRAY);
     cv::copyMakeBorder(grayscale, padded, 1, 1, 1, 1, cv::BORDER_REPLICATE);
+    cv::Mat padded32F;
+    padded.convertTo(padded32F, CV_32F);
     cv::Size size = image.size();
 
     // With separable kernels it seems like you apply the row vector first
@@ -19,28 +22,28 @@ cv::Mat filter(const cv::Mat &image, cv::Vec3i convC, cv::Vec3i convR) {
         for (int y = 0; y < size.height; y++) {
             int padX = x+1;
             int padY = y+1;
-            result.at<uchar>(cv::Point(x, y)) = (
-              padded.at<uchar>(cv::Point(padX-1, padY)) * convR[0] +
-              padded.at<uchar>(cv::Point(padX,   padY)) * convR[1] +
-              padded.at<uchar>(cv::Point(padX+1, padY)) * convR[2]
-            ) / 9;
+            result.at<float>(cv::Point(x, y)) = (
+              padded32F.at<float>(cv::Point(padX-1, padY)) * convR[0] +
+              padded32F.at<float>(cv::Point(padX,   padY)) * convR[1] +
+              padded32F.at<float>(cv::Point(padX+1, padY)) * convR[2]
+            );
         }
     }
     // Then the column vector. Need to re-pad the image.
-    cv::copyMakeBorder(result, padded, 1, 1, 1, 1, cv::BORDER_REPLICATE);
-    cv::normalize(result, result, 0x00, 0xff, cv::NORM_MINMAX);
+    cv::copyMakeBorder(result, padded32F, 1, 1, 1, 1, cv::BORDER_REPLICATE);
     for (int x = 0; x < size.width; x++) {
         for (int y = 0; y < size.height; y++) {
             int padX = x+1;
             int padY = y+1;
-            result.at<uchar>(cv::Point(x, y)) = (
-              padded.at<uchar>(cv::Point(padX, padY-1)) * convC[0] +
-              padded.at<uchar>(cv::Point(padX, padY))   * convC[1] +
-              padded.at<uchar>(cv::Point(padX, padY+1)) * convC[2]
-            ) / 9;
+            result.at<float>(cv::Point(x, y)) = (
+              padded32F.at<float>(cv::Point(padX, padY-1)) * convC[0] +
+              padded32F.at<float>(cv::Point(padX, padY))   * convC[1] +
+              padded32F.at<float>(cv::Point(padX, padY+1)) * convC[2]
+            );
         }
     }
-    cv::normalize(result, result, 0x00, 0xff, cv::NORM_MINMAX);
+    cv::Mat result8U;
+    result.convertTo(result8U, CV_8U);
     cv::Mat colorResult;
     cv::cvtColor(result, colorResult, CV_GRAY2BGR);
     return colorResult;
@@ -49,11 +52,13 @@ cv::Mat filter(const cv::Mat &image, cv::Vec3i convC, cv::Vec3i convR) {
 cv::Mat sobel(const cv::Mat &image) {
     // Source: https://en.wikipedia.org/wiki/Sobel_operator
     cv::Vec3i convXC(1, 2, 1);
-    cv::Vec3i convXR(-1, 0, 1);
+    cv::Vec3i convXR(1, 0, -1);
     cv::Vec3i convYC(1, 0, -1);
     cv::Vec3i convYR(1, 2, 1);
     cv::Mat sobelX = filter(image, convXC, convXR);
     cv::Mat sobelY = filter(image, convYC, convYR);
+    // Technically I think there is supposed to be a 1/4 scale factor applied
+    // to the sobel kernels, but no one seems to do this in practice.
     cv::Mat sobelXFloat, sobelYFloat;
     sobelX.convertTo(sobelXFloat, CV_32FC3);
     sobelY.convertTo(sobelYFloat, CV_32FC3);
@@ -102,7 +107,7 @@ int main(int argc, char *argv[]) {
                 break;
             }
             cv::imshow(WINDOW_NAME, sobel(inFrame));
-            if (cv::waitKey(20) == 27) {
+            if (cv::waitKey(10) == 27) {
                 break;
             }
         }
