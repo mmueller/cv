@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(CV)
 find_package(OpenCV REQUIRED)
-set(CMAKE_CXX_FLAGS "-g -Wall -std=c++11")
+set(CMAKE_CXX_FLAGS "-g -Wall -std=c++11 -Wno-unused-function")
 add_executable(color_balance ColorBalance.cpp)
 add_executable(equal_histogram EqualHistogram.cpp Histogram.cpp)
 add_executable(filter Filter.cpp)
