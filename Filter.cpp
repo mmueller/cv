@@ -1,5 +1,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
+#include <math.h>
 
 #include "Filter.h"
 
@@ -119,6 +120,11 @@ cv::Mat sobel(const cv::Mat &image) {
     return result;
 }
 
+float gaussian(int x, int y, int sigma) {
+    float exp = -((float)(x*x + y*y))/(2*sigma*sigma);
+    return pow(M_E, exp) / (2*M_PI*sigma*sigma);
+}
+
 static void usage(const std::string &program) {
     std::cerr << "Usage:\n";
     std::cerr << "  " << program << " -i [image path]\n";
@@ -137,14 +143,20 @@ static cv::Mat boxKernel(cv::Size size) {
     return box;
 }
 
-static cv::Mat gaussianKernel() {
-    cv::Mat gaussian = (cv::Mat_<float>(5, 5) <<
-        1.0,  4.0,  7.0,  4.0, 1.0,
-        4.0, 16.0, 26.0, 16.0, 4.0,
-        7.0, 26.0, 41.0, 26.0, 7.0,
-        4.0, 16.0, 26.0, 16.0, 4.0,
-        1.0,  4.0,  7.0,  4.0, 1.0);
-    return gaussian / 273.0;
+static cv::Mat gaussianKernel(cv::Size size, int sigma=1) {
+    cv::Mat result(size, CV_32F);
+    if (size.width % 2 != 1 || size.height % 2 != 1) {
+        // We could support even. Maybe later.
+        std::cerr << "Gaussian requires odd dimensions, expect weirdness.\n";
+    }
+    for (int x = 0; x < size.width; x++) {
+        for (int y = 0; y < size.height; y++) {
+            result.at<float>(cv::Point(x, y)) = gaussian(x-size.width/2,
+                                                         y-size.height/2,
+                                                         sigma);
+        }
+    }
+    return result;
 }
 
 static cv::Mat rightShiftKernel() {
@@ -157,10 +169,10 @@ static cv::Mat rightShiftKernel() {
     return rightShift;
 }
 
-static cv::Mat unsharpKernel() {
-    cv::Mat unsharp = gaussianKernel();
+static cv::Mat unsharpKernel(cv::Size size, int sigma=1) {
+    cv::Mat unsharp = gaussianKernel(size, sigma);
     unsharp *= -1;
-    unsharp.at<float>(cv::Point(2, 2)) += 2;
+    unsharp.at<float>(cv::Point(size.width/2, size.height/2)) += 2;
     return unsharp;
 }
 
@@ -194,11 +206,15 @@ int main(int argc, char *argv[]) {
     // Main loop
     std::cerr << "Use keys in the display window to control filtering:\n"
               << std::endl
-              << "  i: Identity filter (default)\n"
               << "  b: Box filter\n"
-              << "  g: Gaussian filter\n"
+              << "  g: Gaussian filter 5x5 (σ=1)\n"
+              << "  2: Gaussian filter 11x11 (σ=2)\n"
+              << "  3: Gaussian filter 17x17 (σ=3)\n"
+              << "  i: Identity filter (default)\n"
               << "  r: Right shift\n"
               << "  u: Unsharp filter based on Gaussian\n"
+              << "  v: Unsharp filter based on Gaussian (11x11)\n"
+              << "  w: Unsharp filter based on Gaussian (17x17)\n"
               << std::endl
               << "Press ESC to quit.\n";
     cv::Mat kernel = identityKernel();
@@ -222,11 +238,15 @@ int main(int argc, char *argv[]) {
             lastKeyPress = cv::waitKey(10);
         }
         switch (lastKeyPress) {
-            case 'i': kernel = identityKernel(); break;
             case 'b': kernel = boxKernel(cv::Size(5, 5)); break;
-            case 'g': kernel = gaussianKernel(); break;
+            case 'g': kernel = gaussianKernel(cv::Size(5, 5)); break;
+            case '2': kernel = gaussianKernel(cv::Size(11, 11), 2); break;
+            case '3': kernel = gaussianKernel(cv::Size(17, 17), 3); break;
+            case 'i': kernel = identityKernel(); break;
             case 'r': kernel = rightShiftKernel(); break;
-            case 'u': kernel = unsharpKernel(); break;
+            case 'u': kernel = unsharpKernel(cv::Size(5, 5)); break;
+            case 'v': kernel = unsharpKernel(cv::Size(11, 11), 2); break;
+            case 'w': kernel = unsharpKernel(cv::Size(17, 17), 3); break;
         }
         if (lastKeyPress == 27) {
             break;
