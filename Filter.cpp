@@ -159,6 +159,28 @@ static cv::Mat gaussianKernel(cv::Size size, int sigma=1) {
     return result;
 }
 
+// First derivative of gaussian kernel, at requested theta angle (in degrees)
+static cv::Mat dogKernel(cv::Size size, float theta, int sigma=1) {
+    cv::Mat G1_0 = gaussianKernel(size, sigma);
+    cv::Mat G1_90 = G1_0.clone();
+
+    for (int x = -size.width/2; x <= size.width/2; x++) {
+        for (int y = -size.height/2; y <= size.height/2; y++) {
+            cv::Point p(x + size.width/2, y + size.height/2);
+            // Partial derivative with respect to X for the 0 degree mat
+            G1_0.at<float>(p) *= -2 * x;
+            // Partial derivative with respect to Y for the 90 degree mat
+            G1_90.at<float>(p) *= -2 * y;
+        }
+    }
+
+    // Conver theta to radians
+    theta *= M_PI / 180;
+
+    // Freeman/Adelson '91 equation (4)
+    return cos(theta)*G1_0 + sin(theta)*G1_90;
+}
+
 static cv::Mat rightShiftKernel() {
     cv::Mat rightShift = (cv::Mat_<float>(5, 5) <<
         0.0, 0.0, 0.0, 0.0, 0.0,
@@ -211,18 +233,27 @@ int main(int argc, char *argv[]) {
               << "  2: Gaussian filter 11x11 (σ=2)\n"
               << "  3: Gaussian filter 17x17 (σ=3)\n"
               << "  i: Identity filter (default)\n"
+              << "  l: Looping steerable derivative-of-Gaussian\n"
               << "  r: Right shift\n"
+              << "  s: Steerable derivative-of-Gaussian (5x5, 45 degrees)\n"
+              << "  t: Steerable derivative-of-Gaussian (5x5, 175 degrees)\n"
               << "  u: Unsharp filter based on Gaussian\n"
               << "  v: Unsharp filter based on Gaussian (11x11)\n"
               << "  w: Unsharp filter based on Gaussian (17x17)\n"
               << std::endl
               << "Press ESC to quit.\n";
     cv::Mat kernel = identityKernel();
+    char lastKeyPress;
+    float theta = 0;
     while (true) {
-        char lastKeyPress;
         if (image.data) {
             cv::imshow(WINDOW_NAME, filter(image, kernel));
-            lastKeyPress = cv::waitKey(0);
+            if (lastKeyPress == 'l' || lastKeyPress == -1) {
+                theta += 5;
+                lastKeyPress = cv::waitKey(1);
+            } else {
+                lastKeyPress = cv::waitKey(0);
+            }
         } else {
             cv::Mat inFrame;
             if (!capture.grab()) {
@@ -243,7 +274,11 @@ int main(int argc, char *argv[]) {
             case '2': kernel = gaussianKernel(cv::Size(11, 11), 2); break;
             case '3': kernel = gaussianKernel(cv::Size(17, 17), 3); break;
             case 'i': kernel = identityKernel(); break;
+            case -1 : // hack for looping dog kernel
+            case 'l': kernel = dogKernel(cv::Size(5, 5), theta, 2); break;
             case 'r': kernel = rightShiftKernel(); break;
+            case 's': kernel = dogKernel(cv::Size(5, 5), 45); break;
+            case 't': kernel = dogKernel(cv::Size(5, 5), 175); break;
             case 'u': kernel = unsharpKernel(cv::Size(5, 5)); break;
             case 'v': kernel = unsharpKernel(cv::Size(11, 11), 2); break;
             case 'w': kernel = unsharpKernel(cv::Size(17, 17), 3); break;
