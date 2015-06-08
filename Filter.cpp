@@ -125,12 +125,6 @@ float gaussian(int x, int y, int sigma) {
     return pow(M_E, exp) / (2*M_PI*sigma*sigma);
 }
 
-static void usage(const std::string &program) {
-    std::cerr << "Usage:\n";
-    std::cerr << "  " << program << " -i [image path]\n";
-    std::cerr << "  " << program << " -v [video path]\n";
-}
-
 static cv::Mat identityKernel() {
     cv::Mat identity = cv::Mat::zeros(3, 3, CV_32F);
     identity.at<float>(cv::Point(1, 1)) = 1;
@@ -143,7 +137,7 @@ static cv::Mat boxKernel(cv::Size size) {
     return box;
 }
 
-static cv::Mat gaussianKernel(cv::Size size, int sigma=1) {
+cv::Mat gaussianKernel(cv::Size size, int sigma) {
     cv::Mat result(size, CV_32F);
     if (size.width % 2 != 1 || size.height % 2 != 1) {
         // We could support even. Maybe later.
@@ -198,6 +192,12 @@ static cv::Mat unsharpKernel(cv::Size size, int sigma=1) {
     return unsharp;
 }
 
+static void usage(const std::string &program) {
+    std::cerr << "Usage:\n";
+    std::cerr << "  " << program << " -i [image path]\n";
+    std::cerr << "  " << program << " -v [video path]\n";
+}
+
 #ifdef FILTER_MAIN
 int main(int argc, char *argv[]) {
     if (argc != 3) {
@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
               << std::endl
               << "Press ESC to quit.\n";
     cv::Mat kernel = identityKernel();
-    char lastKeyPress;
+    char lastKeyPress = 0;
     float theta = 0;
     while (true) {
         if (image.data) {

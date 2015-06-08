@@ -19,4 +19,6 @@ cv::Mat sobel(const cv::Mat &image);
 // Two-dimensional gaussian function
 float gaussian(int x, int y, int sigma=1);
 
+cv::Mat gaussianKernel(cv::Size size, int sigma=1);
+
 #endif
